@@ -125,3 +125,4 @@
 /home/noel/SchoolSystem/backend/SchoolSystem.API/obj/Debug/net10.0/SchoolSystem.API.pdb
 /home/noel/SchoolSystem/backend/SchoolSystem.API/obj/Debug/net10.0/SchoolSystem.API.genruntimeconfig.cache
 /home/noel/SchoolSystem/backend/SchoolSystem.API/obj/Debug/net10.0/ref/SchoolSystem.API.dll
+/home/noel/SchoolSystem/backend/SchoolSystem.API/obj/Debug/net10.0/SchoolSystem.API.sourcelink.json

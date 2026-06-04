@@ -240,5 +240,206 @@ namespace SchoolSystem.API.Services
             if (dateOfBirth > today.AddYears(-age)) age--;
             return age;
         }
+
+        // ── NEW: Midterm/Final Workflow ────────────────────────────────
+
+        public async Task<dynamic?> LookupStudentAsync(string registrationNumber)
+        {
+            var student = await _context.Students
+                .Include(s => s.Class)
+                .FirstOrDefaultAsync(s =>
+                    s.AdmissionNumber == registrationNumber && s.IsActive);
+
+            if (student == null) return null;
+
+            var age = CalculateAge(student.DateOfBirth);
+
+            return new
+            {
+                student.Id,
+                student.FullName,
+                student.AdmissionNumber,
+                Age = age,
+                ClassName = student.Class.Name,
+                student.SchoolLevel
+            };
+        }
+
+        public async Task<GradeResponseDTO?> EnterGradeAsync(EnterGradeDTO dto, int teacherId)
+        {
+            var student = await _context.Students
+                .FirstOrDefaultAsync(s =>
+                    s.AdmissionNumber == dto.RegistrationNumber && s.IsActive);
+
+            if (student == null) return null;
+
+            var subject = await _context.Subjects.FindAsync(dto.SubjectId);
+            if (subject == null) return null;
+
+            if (dto.MidtermScore < 0 || dto.MidtermScore > 50 ||
+                dto.FinalScore < 0 || dto.FinalScore > 50)
+                return null;
+
+            var existing = await _context.Grades
+                .FirstOrDefaultAsync(g =>
+                    g.StudentId == student.Id &&
+                    g.SubjectId == dto.SubjectId &&
+                    g.Term == dto.Term &&
+                    g.AcademicYear == dto.AcademicYear);
+
+            if (existing != null)
+            {
+                existing.MidtermScore = dto.MidtermScore;
+                existing.FinalScore = dto.FinalScore;
+                existing.Comments = dto.Comments;
+                existing.TeacherId = teacherId;
+            }
+            else
+            {
+                _context.Grades.Add(new Grade
+                {
+                    StudentId = student.Id,
+                    SubjectId = dto.SubjectId,
+                    MidtermScore = dto.MidtermScore,
+                    FinalScore = dto.FinalScore,
+                    Term = dto.Term,
+                    AcademicYear = dto.AcademicYear,
+                    Comments = dto.Comments,
+                    TeacherId = teacherId
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            var teacher = await _context.Teachers.FindAsync(teacherId);
+            var total = dto.MidtermScore + dto.FinalScore;
+
+            return new GradeResponseDTO
+            {
+                Id = existing?.Id ?? (await _context.Grades.MaxAsync(g => g.Id)),
+                StudentName = student.FullName,
+                RegistrationNumber = student.AdmissionNumber,
+                SubjectName = subject.Name,
+                MidtermScore = dto.MidtermScore,
+                FinalScore = dto.FinalScore,
+                TotalScore = total,
+                Status = total >= 50 ? "Pass" : "Fail",
+                Term = dto.Term,
+                AcademicYear = dto.AcademicYear,
+                Comments = dto.Comments,
+                TeacherName = teacher?.FullName ?? "N/A"
+            };
+        }
+
+        public async Task<ReportCardDTO?> GetReportCardAsync(
+            string registrationNumber, string term, string academicYear)
+        {
+            var student = await _context.Students
+                .Include(s => s.Class)
+                .FirstOrDefaultAsync(s =>
+                    s.AdmissionNumber == registrationNumber && s.IsActive);
+
+            if (student == null) return null;
+
+            var grades = await _context.Grades
+                .Include(g => g.Subject)
+                .Include(g => g.Teacher)
+                .Where(g =>
+                    g.StudentId == student.Id &&
+                    g.Term == term &&
+                    g.AcademicYear == academicYear)
+                .ToListAsync();
+
+            if (!grades.Any()) return null;
+
+            // Build subject rows
+            var subjectRows = new List<ReportCardSubjectDTO>();
+
+            foreach (var grade in grades)
+            {
+                var classGradesForSubject = await _context.Grades
+                    .Where(g =>
+                        g.SubjectId == grade.SubjectId &&
+                        g.Term == term &&
+                        g.AcademicYear == academicYear &&
+                        g.Student.ClassId == student.ClassId)
+                    .ToListAsync();
+
+                var classMidtermAvg = classGradesForSubject.Any()
+                    ? Math.Round(classGradesForSubject.Average(g => g.MidtermScore), 1)
+                    : 0;
+
+                var classFinalAvg = classGradesForSubject.Any()
+                    ? Math.Round(classGradesForSubject.Average(g => g.FinalScore), 1)
+                    : 0;
+
+                var classSubjectAvg = classGradesForSubject.Any()
+                    ? Math.Round(classGradesForSubject.Average(g => g.TotalScore), 1)
+                    : 0;
+
+                var subjectTotal = grade.TotalScore;
+
+                subjectRows.Add(new ReportCardSubjectDTO
+                {
+                    SubjectName = grade.Subject.Name,
+                    MidtermScore = grade.MidtermScore,
+                    FinalScore = grade.FinalScore,
+                    SubjectTotal = subjectTotal,
+                    ClassMidtermAverage = classMidtermAvg,
+                    ClassFinalAverage = classFinalAvg,
+                    ClassSubjectAverage = classSubjectAvg,
+                    Status = subjectTotal >= 50 ? "Pass" : "Fail",
+                    Comments = grade.Comments,
+                    TeacherName = grade.Teacher.FullName
+                });
+            }
+
+            // Student totals
+            var midtermTotal = grades.Sum(g => g.MidtermScore);
+            var finalTotal = grades.Sum(g => g.FinalScore);
+            var overallAverage = Math.Round((midtermTotal + finalTotal) / grades.Count, 1);
+
+            // Position based on Final Total
+            var allStudentTotals = await _context.Grades
+                .Where(g =>
+                    g.Term == term &&
+                    g.AcademicYear == academicYear &&
+                    g.Student.ClassId == student.ClassId)
+                .GroupBy(g => g.StudentId)
+                .Select(grp => new
+                {
+                    StudentId = grp.Key,
+                    FinalTotal = grp.Sum(g => g.FinalScore)
+                })
+                .OrderByDescending(x => x.FinalTotal)
+                .ToListAsync();
+
+            var position = allStudentTotals.FindIndex(x => x.StudentId == student.Id) + 1;
+            var totalStudents = allStudentTotals.Count;
+
+            // Overall status (pass if passed majority of subjects)
+            var passedSubjects = grades.Count(g => g.TotalScore >= 50);
+            var overallStatus = passedSubjects >= Math.Ceiling(grades.Count / 2.0) ? "Pass" : "Fail";
+
+            // Age
+            var age = CalculateAge(student.DateOfBirth);
+
+            return new ReportCardDTO
+            {
+                StudentName = student.FullName,
+                RegistrationNumber = student.AdmissionNumber,
+                ClassName = student.Class.Name,
+                Age = age,
+                Term = term,
+                AcademicYear = academicYear,
+                Subjects = subjectRows,
+                MidtermTotal = midtermTotal,
+                FinalTotal = finalTotal,
+                OverallAverage = overallAverage,
+                Position = position,
+                TotalStudentsInClass = totalStudents,
+                OverallStatus = overallStatus
+            };
+        }
     }
 }

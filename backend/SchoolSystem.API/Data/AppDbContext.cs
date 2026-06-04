@@ -47,6 +47,10 @@ namespace SchoolSystem.API.Data
                 .WithOne(u => u.Parent)
                 .HasForeignKey<Parent>(p => p.UserId);
 
+            // Grade → TotalScore is computed property (not stored in DB)
+            modelBuilder.Entity<Grade>()
+                .Ignore(g => g.TotalScore);
+
             // Unique constraints
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email).IsUnique();

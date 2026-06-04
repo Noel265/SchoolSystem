@@ -17,7 +17,7 @@ namespace SchoolSystem.API.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("ProductVersion", "8.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -143,14 +143,23 @@ namespace SchoolSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Comments")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("EnteredDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("FinalScore")
+                        .HasColumnType("numeric");
 
                     b.Property<string>("LetterGrade")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<decimal>("Marks")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("MidtermScore")
                         .HasColumnType("numeric");
 
                     b.Property<int>("StudentId")
