@@ -38,6 +38,9 @@ builder.Services.AddScoped<StudentService>();
 builder.Services.AddScoped<ClassService>();
 builder.Services.AddScoped<TeacherService>();
 builder.Services.AddScoped<AttendanceService>();
+builder.Services.AddScoped<SubjectService>();
+builder.Services.AddScoped<GradeService>();
+builder.Services.AddScoped<ReportCardService>();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 

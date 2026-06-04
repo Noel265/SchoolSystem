@@ -14,7 +14,10 @@ namespace SchoolSystem.API.Data
         public DbSet<Parent> Parents { get; set; }
         public DbSet<StudentParent> StudentParents { get; set; }
         public DbSet<Attendance> Attendances { get; set; }
+        public DbSet<Subject> Subjects { get; set; }
         public DbSet<Grade> Grades { get; set; }
+        public DbSet<ReportCard> ReportCards { get; set; }
+        public DbSet<ReportCardSubject> ReportCardSubjects { get; set; }
         public DbSet<FeeRecord> FeeRecords { get; set; }
         public DbSet<TimetableEntry> TimetableEntries { get; set; }
 
