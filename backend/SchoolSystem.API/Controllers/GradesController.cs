@@ -174,5 +174,38 @@ namespace SchoolSystem.API.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("subjects")]
+        [Authorize(Roles = "Admin,Teacher")]
+        public async Task<IActionResult> GetSubjects()
+        {
+            var subjects = await _gradeService.GetAllSubjectsAsync();
+            return Ok(subjects);
+        }
+
+        [HttpPost("subjects")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateSubject(CreateSubjectDTO dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Name) ||
+                string.IsNullOrWhiteSpace(dto.SchoolLevel))
+                return BadRequest(new { message = "Name and SchoolLevel are required." });
+
+            var result = await _gradeService.CreateSubjectAsync(dto);
+            if (result == null)
+                return Conflict(new { message = "Subject already exists for this level." });
+
+            return Ok(result);
+        }
+
+        [HttpDelete("subjects/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteSubject(int id)
+        {
+            var success = await _gradeService.DeleteSubjectAsync(id);
+            if (!success)
+                return NotFound(new { message = "Subject not found." });
+            return Ok(new { message = "Subject removed." });
+        }
     }
 }

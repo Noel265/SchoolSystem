@@ -206,3 +206,16 @@ export interface ReportCard {
 export interface ApiError {
   message?: string;
 }
+
+// ── Subjects ───────────────────────────────────────────────
+export interface Subject {
+  id:number;
+  name: string;
+  schoolLevel: string;
+  isActive: boolean;
+}
+
+export interface CreateSubjectPayload {
+  name: string;
+  schoolLevel: string;
+}

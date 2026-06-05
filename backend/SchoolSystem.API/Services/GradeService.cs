@@ -530,7 +530,21 @@ namespace SchoolSystem.API.Services
                 Position = position,
                 TotalStudentsInClass = totalStudents,
                 OverallStatus = overallStatus
-            };
+            };            
+        }
+
+        public async Task<List<SubjectResponseDTO>> GetAllSubjectsAsync()
+        {
+            return await _context.Subjects
+                .Where(s => s.IsActive)
+                .Select(s => new SubjectResponseDTO
+                {
+                    Id = s.Id,
+                    Name = s.Name,
+                    SchoolLevel = s.SchoolLevel,
+                    IsActive = s.IsActive
+                })
+                .ToListAsync();
         }
     }
 }

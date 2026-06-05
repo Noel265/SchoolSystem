@@ -19,6 +19,8 @@ import type {
   GradeResponse,
   StudentLookup,
   ReportCard,
+  Subject,
+  CreateSubjectPayload,
 } from "../types";
 
 // ── Auth ────────────────────────────────────────────────────
@@ -89,7 +91,7 @@ export const attendanceApi = {
       .then((r) => r.data),
 };
 
-// ── Grades / Report cards ───────────────────────────────────
+// ── Grades / Report cards ──────────────────────────────────
 export const gradesApi = {
   lookupStudent: (registrationNumber: string) =>
     api
@@ -107,4 +109,13 @@ export const gradesApi = {
         `/grades/reportcard/${registrationNumber}/${term}/${academicYear}`
       )
       .then((r) => r.data),
+};
+
+// ── Subjects ──────────────────────────────────
+export const subjectsApi = {
+  getAll: () => api.get<Subject[]>("/grades/subjects").then((r) => r.data),
+  create: (payload: CreateSubjectPayload) =>
+    api.post<Subject>("/grades/subjects", payload).then((r) => r.data),
+  remove: (id: number) =>
+    api.delete(`/grades/subjects/${id}`).then((r) => r.data),
 };

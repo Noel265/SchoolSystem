@@ -15,6 +15,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/students", label: "Students", icon: "🎓", roles: ["Admin", "Teacher"] },
   { to: "/classes", label: "Classes", icon: "🏫", roles: ["Admin", "Teacher"] },
   { to: "/teachers", label: "Teachers", icon: "👩‍🏫", roles: ["Admin"] },
+  { to: "/subjects", label: "Subjects", icon: "📚", roles: ["Admin"] },
   {
     to: "/attendance",
     label: "Attendance",
