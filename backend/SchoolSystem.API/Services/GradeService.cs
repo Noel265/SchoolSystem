@@ -312,14 +312,19 @@ namespace SchoolSystem.API.Services
             var subject = await _context.Subjects.FindAsync(dto.SubjectId);
             if (subject == null) return null;
 
+            // teacherId == 0 means an Admin is entering the grade. Admins aren't tied
+            // to a specific ClassSubject assignment, so match the subject's assignment
+            // for this class (any teacher) and attribute the grade to that teacher.
             var assignment = await _context.ClassSubjects
                 .FirstOrDefaultAsync(cs =>
                     cs.IsActive &&
                     cs.ClassId == student.ClassId &&
                     cs.SubjectId == dto.SubjectId &&
-                    cs.TeacherId == teacherId);
+                    (teacherId == 0 || cs.TeacherId == teacherId));
 
             if (assignment == null) return null;
+
+            var effectiveTeacherId = teacherId == 0 ? assignment.TeacherId : teacherId;
 
             if (dto.MidtermScore < 0 || dto.MidtermScore > 50 ||
                 dto.FinalScore < 0 || dto.FinalScore > 50)
@@ -337,7 +342,7 @@ namespace SchoolSystem.API.Services
                 existing.MidtermScore = dto.MidtermScore;
                 existing.FinalScore = dto.FinalScore;
                 existing.Comments = dto.Comments;
-                existing.TeacherId = teacherId;
+                existing.TeacherId = effectiveTeacherId;
             }
             else
             {
@@ -350,13 +355,13 @@ namespace SchoolSystem.API.Services
                     Term = dto.Term,
                     AcademicYear = dto.AcademicYear,
                     Comments = dto.Comments,
-                    TeacherId = teacherId
+                    TeacherId = effectiveTeacherId
                 });
             }
 
             await _context.SaveChangesAsync();
 
-            var teacher = await _context.Teachers.FindAsync(teacherId);
+            var teacher = await _context.Teachers.FindAsync(effectiveTeacherId);
             var total = dto.MidtermScore + dto.FinalScore;
 
             return new GradeResponseDTO
