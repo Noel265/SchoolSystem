@@ -36,7 +36,10 @@ export function SubjectsPage() {
   }, []);
 
   useEffect(() => {
-    load();
+    const run = async () => {
+      await load();
+    };
+    run();
   }, [load]);
 
   const openCreate = () => {

@@ -546,5 +546,69 @@ namespace SchoolSystem.API.Services
                 })
                 .ToListAsync();
         }
+
+        public async Task<SubjectResponseDTO?> CreateSubjectAsync(CreateSubjectDTO dto)
+        {
+            var name = dto.Name.Trim();
+            var level = dto.SchoolLevel.Trim();
+
+            var exists = await _context.Subjects.AnyAsync(s =>
+                s.IsActive &&
+                s.Name.ToLower() == name.ToLower() &&
+                s.SchoolLevel == level);
+            if (exists) return null;
+
+            var code = await GenerateUniqueSubjectCodeAsync(dto.Code, name);
+
+            var subject = new Subject
+            {
+                Name = name,
+                Code = code,
+                SchoolLevel = level,
+                IsActive = true
+            };
+
+            _context.Subjects.Add(subject);
+            await _context.SaveChangesAsync();
+
+            return new SubjectResponseDTO
+            {
+                Id = subject.Id,
+                Name = subject.Name,
+                Code = subject.Code,
+                SchoolLevel = subject.SchoolLevel,
+                IsActive = subject.IsActive
+            };
+        }
+
+        public async Task<bool> DeleteSubjectAsync(int id)
+        {
+            var subject = await _context.Subjects.FindAsync(id);
+            if (subject == null || !subject.IsActive) return false;
+
+            subject.IsActive = false;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        private async Task<string> GenerateUniqueSubjectCodeAsync(string? requestedCode, string name)
+        {
+            var baseCode = !string.IsNullOrWhiteSpace(requestedCode)
+                ? requestedCode.Trim().ToUpper()
+                : new string(name.Where(char.IsLetterOrDigit).ToArray()).ToUpper();
+
+            if (string.IsNullOrWhiteSpace(baseCode)) baseCode = "SUBJ";
+            if (baseCode.Length > 8) baseCode = baseCode.Substring(0, 8);
+
+            var code = baseCode;
+            var suffix = 1;
+            while (await _context.Subjects.AnyAsync(s => s.Code == code))
+            {
+                code = $"{baseCode}{suffix}";
+                suffix++;
+            }
+
+            return code;
+        }
     }
 }
