@@ -265,6 +265,42 @@ namespace SchoolSystem.API.Services
             };
         }
 
+        public async Task<List<ClassSubjectResponseDTO>> GetAvailableSubjectsForStudentAsync(
+            string registrationNumber, int? teacherId)
+        {
+            var student = await _context.Students
+                .FirstOrDefaultAsync(s =>
+                    s.AdmissionNumber == registrationNumber && s.IsActive);
+
+            if (student == null) return new List<ClassSubjectResponseDTO>();
+
+            var query = _context.ClassSubjects
+                .Include(cs => cs.Class)
+                .Include(cs => cs.Subject)
+                .Include(cs => cs.Teacher)
+                .Where(cs => cs.IsActive && cs.ClassId == student.ClassId);
+
+            if (teacherId.HasValue)
+                query = query.Where(cs => cs.TeacherId == teacherId.Value);
+
+            return await query
+                .OrderBy(cs => cs.Subject.Name)
+                .Select(cs => new ClassSubjectResponseDTO
+                {
+                    Id = cs.Id,
+                    ClassId = cs.ClassId,
+                    ClassName = cs.Class.Name,
+                    SchoolLevel = cs.Class.SchoolLevel,
+                    SubjectId = cs.SubjectId,
+                    SubjectName = cs.Subject.Name,
+                    SubjectCode = cs.Subject.Code,
+                    TeacherId = cs.TeacherId,
+                    TeacherName = cs.Teacher.FullName,
+                    IsActive = cs.IsActive
+                })
+                .ToListAsync();
+        }
+
         public async Task<GradeResponseDTO?> EnterGradeAsync(EnterGradeDTO dto, int teacherId)
         {
             var student = await _context.Students
@@ -275,6 +311,15 @@ namespace SchoolSystem.API.Services
 
             var subject = await _context.Subjects.FindAsync(dto.SubjectId);
             if (subject == null) return null;
+
+            var assignment = await _context.ClassSubjects
+                .FirstOrDefaultAsync(cs =>
+                    cs.IsActive &&
+                    cs.ClassId == student.ClassId &&
+                    cs.SubjectId == dto.SubjectId &&
+                    cs.TeacherId == teacherId);
+
+            if (assignment == null) return null;
 
             if (dto.MidtermScore < 0 || dto.MidtermScore > 50 ||
                 dto.FinalScore < 0 || dto.FinalScore > 50)
@@ -328,6 +373,52 @@ namespace SchoolSystem.API.Services
                 AcademicYear = dto.AcademicYear,
                 Comments = dto.Comments,
                 TeacherName = teacher?.FullName ?? "N/A"
+            };
+        }
+
+        public async Task<StudentGradesTableDTO?> GetStudentGradesTableAsync(
+            string registrationNumber, string term, string academicYear)
+        {
+            var student = await _context.Students
+                .Include(s => s.Class)
+                .FirstOrDefaultAsync(s =>
+                    s.AdmissionNumber == registrationNumber && s.IsActive);
+
+            if (student == null) return null;
+
+            var grades = await _context.Grades
+                .Include(g => g.Subject)
+                .Include(g => g.Teacher)
+                .Where(g =>
+                    g.StudentId == student.Id &&
+                    g.Term == term &&
+                    g.AcademicYear == academicYear)
+                .OrderBy(g => g.Subject.Name)
+                .Select(g => new GradeResponseDTO
+                {
+                    Id = g.Id,
+                    StudentName = student.FullName,
+                    RegistrationNumber = student.AdmissionNumber,
+                    SubjectName = g.Subject.Name,
+                    MidtermScore = g.MidtermScore,
+                    FinalScore = g.FinalScore,
+                    TotalScore = g.MidtermScore + g.FinalScore,
+                    Status = g.MidtermScore + g.FinalScore >= 50 ? "Pass" : "Fail",
+                    Term = g.Term,
+                    AcademicYear = g.AcademicYear,
+                    Comments = g.Comments,
+                    TeacherName = g.Teacher.FullName
+                })
+                .ToListAsync();
+
+            return new StudentGradesTableDTO
+            {
+                StudentName = student.FullName,
+                RegistrationNumber = student.AdmissionNumber,
+                ClassName = student.Class.Name,
+                Term = term,
+                AcademicYear = academicYear,
+                Grades = grades
             };
         }
 
