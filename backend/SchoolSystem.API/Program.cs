@@ -43,6 +43,8 @@ builder.Services.AddScoped<GradeService>();
 builder.Services.AddScoped<ReportCardService>();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+builder.Services.AddScoped<ParentService>();
+builder.Services.AddScoped<FeeService>();
 
 // CORS for React frontend
 builder.Services.AddCors(options =>

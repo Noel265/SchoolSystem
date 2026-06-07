@@ -21,6 +21,10 @@ import type {
   ReportCard,
   Subject,
   CreateSubjectPayload,
+  FeeRecord,
+  RecordPaymentPayload,
+  CreateFeePayload,
+  FeesSummary,
 } from "../types";
 
 // ── Auth ────────────────────────────────────────────────────
@@ -118,4 +122,19 @@ export const subjectsApi = {
     api.post<Subject>("/grades/subjects", payload).then((r) => r.data),
   remove: (id: number) =>
     api.delete(`/grades/subjects/${id}`).then((r) => r.data),
+};
+
+// ── Fees ────────────────────────────────────────────────────
+export const feesApi = {
+  getAll: (term?: string, academicYear?: string) =>
+    api.get<FeeRecord[]>("/fees", { params: { term, academicYear } })
+      .then((r) => r.data),
+  getByStudent: (studentId: number) =>
+    api.get<FeesSummary>(`/fees/student/${studentId}`).then((r) => r.data),
+  getOverdue: () =>
+    api.get<FeeRecord[]>("/fees/overdue").then((r) => r.data),
+  create: (payload: CreateFeePayload) =>
+    api.post<FeeRecord>("/fees", payload).then((r) => r.data),
+  recordPayment: (payload: RecordPaymentPayload) =>
+    api.post<FeeRecord>("/fees/payment", payload).then((r) => r.data),
 };

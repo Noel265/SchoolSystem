@@ -29,6 +29,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: "📋",
     roles: ["Admin", "Teacher", "Parent"],
   },
+  {
+    to: "/fees",
+    label: "Fees",
+    icon: "💰",
+    roles: ["Admin"],
+  },
 ];
 
 export function Layout() {

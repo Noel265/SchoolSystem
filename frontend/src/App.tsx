@@ -12,6 +12,7 @@ import { AttendancePage } from "./pages/AttendancePage";
 import { GradesPage } from "./pages/GradesPage";
 import { ReportCardsPage } from "./pages/ReportCardsPage";
 import { SubjectsPage } from "./pages/SubjectsPage";
+import { FeesPage } from "./pages/FeesPage";
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
               <Route element={<ProtectedRoute roles={["Admin"]} />}>
                 <Route path="/teachers" element={<TeachersPage />} />
                 <Route path="/subjects" element={<SubjectsPage />} />
+                <Route path="/fees" element={<FeesPage />} />
               </Route>
             </Route>
           </Route>

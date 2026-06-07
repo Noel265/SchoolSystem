@@ -219,3 +219,45 @@ export interface CreateSubjectPayload {
   name: string;
   schoolLevel: string;
 }
+
+// ── Fees ────────────────────────────────────────────────────
+export interface FeeRecord {
+  id: number;
+  studentName: string;
+  admissionNumber: string;
+  className: string;
+  feeType: string;
+  amountDue: number;
+  amountPaid: number;
+  balance: number;
+  status: string;
+  term: string;
+  academicYear: string;
+  dueDate: string;
+  paymentDate?: string | null;
+}
+
+export interface FeesSummary {
+  studentName: string;
+  admissionNumber: string;
+  className: string;
+  totalDue: number;
+  totalPaid: number;
+  totalBalance: number;
+  records: FeeRecord[];
+}
+
+export interface CreateFeePayload {
+  studentId: number;
+  feeType: string;
+  amountDue: number;
+  term: string;
+  academicYear: string;
+  dueDate: string;
+}
+
+export interface RecordPaymentPayload {
+  feeRecordId: number;
+  amountPaid: number;
+  notes?: string;
+}
