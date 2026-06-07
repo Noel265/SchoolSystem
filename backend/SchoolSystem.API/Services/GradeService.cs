@@ -265,6 +265,42 @@ namespace SchoolSystem.API.Services
             };
         }
 
+        public async Task<List<ClassSubjectResponseDTO>> GetAvailableSubjectsForStudentAsync(
+            string registrationNumber, int? teacherId)
+        {
+            var student = await _context.Students
+                .FirstOrDefaultAsync(s =>
+                    s.AdmissionNumber == registrationNumber && s.IsActive);
+
+            if (student == null) return new List<ClassSubjectResponseDTO>();
+
+            var query = _context.ClassSubjects
+                .Include(cs => cs.Class)
+                .Include(cs => cs.Subject)
+                .Include(cs => cs.Teacher)
+                .Where(cs => cs.IsActive && cs.ClassId == student.ClassId);
+
+            if (teacherId.HasValue)
+                query = query.Where(cs => cs.TeacherId == teacherId.Value);
+
+            return await query
+                .OrderBy(cs => cs.Subject.Name)
+                .Select(cs => new ClassSubjectResponseDTO
+                {
+                    Id = cs.Id,
+                    ClassId = cs.ClassId,
+                    ClassName = cs.Class.Name,
+                    SchoolLevel = cs.Class.SchoolLevel,
+                    SubjectId = cs.SubjectId,
+                    SubjectName = cs.Subject.Name,
+                    SubjectCode = cs.Subject.Code,
+                    TeacherId = cs.TeacherId,
+                    TeacherName = cs.Teacher.FullName,
+                    IsActive = cs.IsActive
+                })
+                .ToListAsync();
+        }
+
         public async Task<GradeResponseDTO?> EnterGradeAsync(EnterGradeDTO dto, int teacherId)
         {
             var student = await _context.Students
@@ -275,6 +311,20 @@ namespace SchoolSystem.API.Services
 
             var subject = await _context.Subjects.FindAsync(dto.SubjectId);
             if (subject == null) return null;
+
+            // teacherId == 0 means an Admin is entering the grade. Admins aren't tied
+            // to a specific ClassSubject assignment, so match the subject's assignment
+            // for this class (any teacher) and attribute the grade to that teacher.
+            var assignment = await _context.ClassSubjects
+                .FirstOrDefaultAsync(cs =>
+                    cs.IsActive &&
+                    cs.ClassId == student.ClassId &&
+                    cs.SubjectId == dto.SubjectId &&
+                    (teacherId == 0 || cs.TeacherId == teacherId));
+
+            if (assignment == null) return null;
+
+            var effectiveTeacherId = teacherId == 0 ? assignment.TeacherId : teacherId;
 
             if (dto.MidtermScore < 0 || dto.MidtermScore > 50 ||
                 dto.FinalScore < 0 || dto.FinalScore > 50)
@@ -292,7 +342,7 @@ namespace SchoolSystem.API.Services
                 existing.MidtermScore = dto.MidtermScore;
                 existing.FinalScore = dto.FinalScore;
                 existing.Comments = dto.Comments;
-                existing.TeacherId = teacherId;
+                existing.TeacherId = effectiveTeacherId;
             }
             else
             {
@@ -305,13 +355,13 @@ namespace SchoolSystem.API.Services
                     Term = dto.Term,
                     AcademicYear = dto.AcademicYear,
                     Comments = dto.Comments,
-                    TeacherId = teacherId
+                    TeacherId = effectiveTeacherId
                 });
             }
 
             await _context.SaveChangesAsync();
 
-            var teacher = await _context.Teachers.FindAsync(teacherId);
+            var teacher = await _context.Teachers.FindAsync(effectiveTeacherId);
             var total = dto.MidtermScore + dto.FinalScore;
 
             return new GradeResponseDTO
@@ -328,6 +378,52 @@ namespace SchoolSystem.API.Services
                 AcademicYear = dto.AcademicYear,
                 Comments = dto.Comments,
                 TeacherName = teacher?.FullName ?? "N/A"
+            };
+        }
+
+        public async Task<StudentGradesTableDTO?> GetStudentGradesTableAsync(
+            string registrationNumber, string term, string academicYear)
+        {
+            var student = await _context.Students
+                .Include(s => s.Class)
+                .FirstOrDefaultAsync(s =>
+                    s.AdmissionNumber == registrationNumber && s.IsActive);
+
+            if (student == null) return null;
+
+            var grades = await _context.Grades
+                .Include(g => g.Subject)
+                .Include(g => g.Teacher)
+                .Where(g =>
+                    g.StudentId == student.Id &&
+                    g.Term == term &&
+                    g.AcademicYear == academicYear)
+                .OrderBy(g => g.Subject.Name)
+                .Select(g => new GradeResponseDTO
+                {
+                    Id = g.Id,
+                    StudentName = student.FullName,
+                    RegistrationNumber = student.AdmissionNumber,
+                    SubjectName = g.Subject.Name,
+                    MidtermScore = g.MidtermScore,
+                    FinalScore = g.FinalScore,
+                    TotalScore = g.MidtermScore + g.FinalScore,
+                    Status = g.MidtermScore + g.FinalScore >= 50 ? "Pass" : "Fail",
+                    Term = g.Term,
+                    AcademicYear = g.AcademicYear,
+                    Comments = g.Comments,
+                    TeacherName = g.Teacher.FullName
+                })
+                .ToListAsync();
+
+            return new StudentGradesTableDTO
+            {
+                StudentName = student.FullName,
+                RegistrationNumber = student.AdmissionNumber,
+                ClassName = student.Class.Name,
+                Term = term,
+                AcademicYear = academicYear,
+                Grades = grades
             };
         }
 
@@ -439,7 +535,85 @@ namespace SchoolSystem.API.Services
                 Position = position,
                 TotalStudentsInClass = totalStudents,
                 OverallStatus = overallStatus
+            };            
+        }
+
+        public async Task<List<SubjectResponseDTO>> GetAllSubjectsAsync()
+        {
+            return await _context.Subjects
+                .Where(s => s.IsActive)
+                .Select(s => new SubjectResponseDTO
+                {
+                    Id = s.Id,
+                    Name = s.Name,
+                    SchoolLevel = s.SchoolLevel,
+                    IsActive = s.IsActive
+                })
+                .ToListAsync();
+        }
+
+        public async Task<SubjectResponseDTO?> CreateSubjectAsync(CreateSubjectDTO dto)
+        {
+            var name = dto.Name.Trim();
+            var level = dto.SchoolLevel.Trim();
+
+            var exists = await _context.Subjects.AnyAsync(s =>
+                s.IsActive &&
+                s.Name.ToLower() == name.ToLower() &&
+                s.SchoolLevel == level);
+            if (exists) return null;
+
+            var code = await GenerateUniqueSubjectCodeAsync(dto.Code, name);
+
+            var subject = new Subject
+            {
+                Name = name,
+                Code = code,
+                SchoolLevel = level,
+                IsActive = true
             };
+
+            _context.Subjects.Add(subject);
+            await _context.SaveChangesAsync();
+
+            return new SubjectResponseDTO
+            {
+                Id = subject.Id,
+                Name = subject.Name,
+                Code = subject.Code,
+                SchoolLevel = subject.SchoolLevel,
+                IsActive = subject.IsActive
+            };
+        }
+
+        public async Task<bool> DeleteSubjectAsync(int id)
+        {
+            var subject = await _context.Subjects.FindAsync(id);
+            if (subject == null || !subject.IsActive) return false;
+
+            subject.IsActive = false;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        private async Task<string> GenerateUniqueSubjectCodeAsync(string? requestedCode, string name)
+        {
+            var baseCode = !string.IsNullOrWhiteSpace(requestedCode)
+                ? requestedCode.Trim().ToUpper()
+                : new string(name.Where(char.IsLetterOrDigit).ToArray()).ToUpper();
+
+            if (string.IsNullOrWhiteSpace(baseCode)) baseCode = "SUBJ";
+            if (baseCode.Length > 8) baseCode = baseCode.Substring(0, 8);
+
+            var code = baseCode;
+            var suffix = 1;
+            while (await _context.Subjects.AnyAsync(s => s.Code == code))
+            {
+                code = $"{baseCode}{suffix}";
+                suffix++;
+            }
+
+            return code;
         }
     }
 }

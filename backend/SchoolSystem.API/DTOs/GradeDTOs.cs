@@ -82,6 +82,16 @@ namespace SchoolSystem.API.DTOs
         public string TeacherName { get; set; } = string.Empty;
     }
 
+    public class StudentGradesTableDTO
+    {
+        public string StudentName { get; set; } = string.Empty;
+        public string RegistrationNumber { get; set; } = string.Empty;
+        public string ClassName { get; set; } = string.Empty;
+        public string Term { get; set; } = string.Empty;
+        public string AcademicYear { get; set; } = string.Empty;
+        public List<GradeResponseDTO> Grades { get; set; } = new();
+    }
+
     public class ReportCardSubjectDTO
     {
         public string SubjectName { get; set; } = string.Empty;

@@ -43,12 +43,18 @@ builder.Services.AddScoped<GradeService>();
 builder.Services.AddScoped<ReportCardService>();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+builder.Services.AddScoped<ParentService>();
+builder.Services.AddScoped<FeeService>();
 
 // CORS for React frontend
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReact", policy =>
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://localhost:5174",
+                "http://127.0.0.1:5174")
               .AllowAnyHeader()
               .AllowAnyMethod());
 });

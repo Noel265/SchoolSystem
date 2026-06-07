@@ -109,10 +109,7 @@ namespace SchoolSystem.API.Controllers
             int teacherId;
             if (userRole == "Admin")
             {
-                var firstTeacher = await _context.Teachers.FirstOrDefaultAsync(t => t.IsActive);
-                if (firstTeacher == null)
-                    return BadRequest(new { message = "No teachers found." });
-                teacherId = firstTeacher.Id;
+                teacherId = 0;
             }
             else
             {
@@ -128,6 +125,43 @@ namespace SchoolSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("student/{registrationNumber}/subjects")]
+        [Authorize(Roles = "Admin,Teacher")]
+        public async Task<IActionResult> GetAvailableSubjects(string registrationNumber)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim == null) return Unauthorized();
+
+            int? teacherId = null;
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            if (userRole == "Teacher")
+            {
+                var userId = int.Parse(userIdClaim);
+                var teacher = await _context.Teachers.FirstOrDefaultAsync(t => t.UserId == userId);
+                if (teacher == null) return Forbid();
+                teacherId = teacher.Id;
+            }
+
+            var result = await _gradeService.GetAvailableSubjectsForStudentAsync(registrationNumber, teacherId);
+            return Ok(result);
+        }
+
+        [HttpGet("student/{registrationNumber}/table")]
+        [Authorize(Roles = "Admin,Teacher,Parent")]
+        public async Task<IActionResult> GetStudentGradesTable(
+            string registrationNumber, [FromQuery] string term, [FromQuery] string academicYear)
+        {
+            if (string.IsNullOrWhiteSpace(term) || string.IsNullOrWhiteSpace(academicYear))
+                return BadRequest(new { message = "Term and AcademicYear are required." });
+
+            var result = await _gradeService.GetStudentGradesTableAsync(registrationNumber, term, academicYear);
+            if (result == null)
+                return NotFound(new { message = "Student not found." });
+
+            return Ok(result);
+        }
+
         [HttpGet("reportcard/{registrationNumber}/{term}/{academicYear}")]
         [Authorize(Roles = "Admin,Teacher,Parent")]
         public async Task<IActionResult> GetReportCard(
@@ -139,6 +173,39 @@ namespace SchoolSystem.API.Controllers
                 return NotFound(new { message = "No grades found for this student." });
 
             return Ok(result);
+        }
+
+        [HttpGet("subjects")]
+        [Authorize(Roles = "Admin,Teacher")]
+        public async Task<IActionResult> GetSubjects()
+        {
+            var subjects = await _gradeService.GetAllSubjectsAsync();
+            return Ok(subjects);
+        }
+
+        [HttpPost("subjects")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateSubject(CreateSubjectDTO dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Name) ||
+                string.IsNullOrWhiteSpace(dto.SchoolLevel))
+                return BadRequest(new { message = "Name and SchoolLevel are required." });
+
+            var result = await _gradeService.CreateSubjectAsync(dto);
+            if (result == null)
+                return Conflict(new { message = "Subject already exists for this level." });
+
+            return Ok(result);
+        }
+
+        [HttpDelete("subjects/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteSubject(int id)
+        {
+            var success = await _gradeService.DeleteSubjectAsync(id);
+            if (!success)
+                return NotFound(new { message = "Subject not found." });
+            return Ok(new { message = "Subject removed." });
         }
     }
 }

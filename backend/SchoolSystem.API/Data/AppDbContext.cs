@@ -15,6 +15,7 @@ namespace SchoolSystem.API.Data
         public DbSet<StudentParent> StudentParents { get; set; }
         public DbSet<Attendance> Attendances { get; set; }
         public DbSet<Subject> Subjects { get; set; }
+        public DbSet<ClassSubject> ClassSubjects { get; set; }
         public DbSet<Grade> Grades { get; set; }
         public DbSet<ReportCard> ReportCards { get; set; }
         public DbSet<ReportCardSubject> ReportCardSubjects { get; set; }
@@ -51,6 +52,24 @@ namespace SchoolSystem.API.Data
             modelBuilder.Entity<Grade>()
                 .Ignore(g => g.TotalScore);
 
+            modelBuilder.Entity<ClassSubject>()
+                .HasOne(cs => cs.Class)
+                .WithMany(c => c.ClassSubjects)
+                .HasForeignKey(cs => cs.ClassId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ClassSubject>()
+                .HasOne(cs => cs.Subject)
+                .WithMany(s => s.ClassSubjects)
+                .HasForeignKey(cs => cs.SubjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ClassSubject>()
+                .HasOne(cs => cs.Teacher)
+                .WithMany(t => t.ClassSubjects)
+                .HasForeignKey(cs => cs.TeacherId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Unique constraints
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email).IsUnique();
@@ -60,6 +79,13 @@ namespace SchoolSystem.API.Data
 
             modelBuilder.Entity<Teacher>()
                 .HasIndex(t => t.EmployeeNumber).IsUnique();
+
+            modelBuilder.Entity<Subject>()
+                .HasIndex(s => s.Code).IsUnique();
+
+            modelBuilder.Entity<ClassSubject>()
+                .HasIndex(cs => new { cs.ClassId, cs.SubjectId })
+                .IsUnique();
         }
     }
 }

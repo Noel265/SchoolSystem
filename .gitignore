@@ -1,0 +1,22 @@
+# .NET build output
+[Bb]in/
+[Oo]bj/
+*.user
+
+# Node / frontend
+node_modules/
+
+# Environment files
+*.env
+.env
+.env.*
+!.env.example
+
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

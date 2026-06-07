@@ -9,5 +9,6 @@ namespace SchoolSystem.API.Models
         public bool IsActive { get; set; } = true;
 
         public ICollection<Grade> Grades { get; set; } = new List<Grade>();
+        public ICollection<ClassSubject> ClassSubjects { get; set; } = new List<ClassSubject>();
     }
 }

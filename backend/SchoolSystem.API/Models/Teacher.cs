@@ -15,5 +15,6 @@ namespace SchoolSystem.API.Models
 
         public ICollection<Class> Classes { get; set; } = new List<Class>();
         public ICollection<TimetableEntry> TimetableEntries { get; set; } = new List<TimetableEntry>();
+        public ICollection<ClassSubject> ClassSubjects { get; set; } = new List<ClassSubject>();
     }
 }
